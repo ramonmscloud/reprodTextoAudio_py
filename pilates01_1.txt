@@ -1,13 +1,14 @@
-[IMAGEN: pan1.png]
-[IMAGEN: pan2.png]
-[IMAGEN: pan3.png]
-[IMAGEN: pan4.png]
-[IMAGEN: pan5.png]
+
+ [IMAGEN: pan1.png]
+ [IMAGEN: pan2.png]
+ [IMAGEN: pan3.png]
+ [IMAGEN: pan4.png]
+ [IMAGEN: pan5.png]
 
 [PAUSE:20] 
 Empezamos parte 1
 
-[IMAGEN: pan1.png]
+ [IMAGEN: pan1.png]
 [EJERCICIO: 1] 
 De pie relajado. cabeza y pecho altos.  Hombros bajos. Centro controlado. Respiración
 

@@ -2,53 +2,47 @@
 # -*- coding: utf-8 -*-
 
 # Nota: Este script utiliza los comandos 'say' y 'open' que son específicos de macOS
-# para la síntesis de voz y la apertura de imágenes, con el fin de replicar
-# la funcionalidad del script Zsh original.
-# Si necesitas una versión más portable (multiplataforma), se requerirían
-# bibliotecas como pyttsx3 para TTS y webbrowser o Pillow para imágenes.
+# para la síntesis de voz y la apertura de imágenes.
 
 import re
 import time
 import subprocess
-import os # Solo para os.path.exists en una comprobación opcional
+import os
+import glob # Módulo para encontrar archivos por patrón
 
-INPUT_FILE = "pilates01.txt"
-start_time = time.time()
+start_time = time.time() # Tiempo de inicio global del script
 
 # --- Funciones auxiliares ---
 
 def speak(text_to_speak):
     """Utiliza el comando 'say' de macOS para la síntesis de voz."""
     if not text_to_speak or not text_to_speak.strip():
-        return  # No ejecutar 'say' con una cadena vacía o solo espacios
+        return
     try:
-        # Descomenta la siguiente línea para depurar lo que se está intentando decir:
-        # print(f"DEBUG: Intentando decir: '{text_to_speak}'")
         subprocess.run(["say", text_to_speak], check=True)
     except FileNotFoundError:
         print("Error: Comando 'say' no encontrado. Este script requiere macOS para la síntesis de voz.")
     except subprocess.CalledProcessError as e:
         print(f"Error durante la ejecución de 'say': {e}")
 
-# --- Funciones principales (equivalentes a las del script Zsh) ---
+# --- Funciones principales ---
 
 def sintetizar_tiempo():
-    """Sintetiza por voz los minutos transcurridos."""
+    """Sintetiza por voz los minutos transcurridos desde el inicio del script."""
     current_time = time.time()
     elapsed_seconds = current_time - start_time
     elapsed_minutes = int(elapsed_seconds / 60)
     message = f"Han transcurrido {elapsed_minutes} minutos desde el inicio de la ejecución"
-    print(message) # Imprime en consola primero, como en el script original
+    print(message)
     speak(message)
 
 def manejar_pausa(pause_duration_str, text_content):
     """Maneja la pausa, opcionalmente diciendo un texto antes."""
-    if text_content: # Si hay texto asociado (lo que venía después de [PAUSE:X])
+    if text_content:
         speak(text_content)
     
     try:
         pause_duration_int = int(pause_duration_str)
-        # El script original imprimía "Esperando X segundos..." y luego decía "X segundos"
         print(f"Esperando {pause_duration_int} segundos...")
         speak(f"{pause_duration_int} segundos")
         time.sleep(pause_duration_int)
@@ -57,18 +51,13 @@ def manejar_pausa(pause_duration_str, text_content):
 
 def manejar_imagen(image_filename, text_content):
     """Maneja la imagen, opcionalmente diciendo un texto antes."""
-    if text_content: # Si hay texto asociado (lo que venía antes de IMAGEN:)
+    if text_content:
         speak(text_content)
     
     print(f"Abriendo la imagen {image_filename}...")
     try:
-        # Utiliza el comando 'open' de macOS
         subprocess.run(["open", image_filename], check=True)
-        # Opcionalmente, podrías añadir una comprobación de si el archivo existe antes de intentar abrirlo:
-        # if not os.path.exists(image_filename):
-        #     print(f"Advertencia: El archivo de imagen '{image_filename}' no parece existir.")
     except FileNotFoundError:
-        # Esto ocurriría si el comando 'open' no se encuentra, o si 'open' falla porque el archivo no existe (depende de 'open')
         print(f"Error: Comando 'open' no encontrado (requiere macOS) o no se pudo abrir '{image_filename}'.")
     except subprocess.CalledProcessError as e:
         print(f"Error al abrir la imagen '{image_filename}': {e}")
@@ -76,71 +65,66 @@ def manejar_imagen(image_filename, text_content):
 def manejar_ejercicio(ejercicio_numero):
     """Maneja el anuncio del número de ejercicio."""
     message = f"Ejercicio {ejercicio_numero}"
-    print(message) # Imprime en consola primero
+    print(message)
     speak(message)
 
 # --- Lógica principal de procesamiento ---
 
-def main():
+def main(input_filename):
     """Función principal que lee y procesa el archivo de entrada."""
+    
+    # Aunque seleccionemos de una lista, una comprobación extra no hace daño.
+    if not os.path.exists(input_filename):
+        print(f"Error: El archivo de entrada '{input_filename}' no fue encontrado al intentar procesarlo.")
+        return
+
+    print(f"Procesando el archivo: {input_filename}")
+    print("--------------------------------------------------------------------")
+    
     try:
-        with open(INPUT_FILE, "r", encoding="utf-8") as f:
+        with open(input_filename, "r", encoding="utf-8") as f:
             for line_number, line_content in enumerate(f, 1):
                 line_content = line_content.strip()
-                if not line_content: # Saltar líneas vacías
+                if not line_content:
                     continue
 
-                # Dividir la línea en partes usando '/' como en el script Zsh
                 parts = line_content.split('/')
                 
                 for part_text in parts:
                     part = part_text.strip()
-                    if not part: # Saltar partes vacías resultantes del split
+                    if not part:
                         continue
 
-                    # Intentar encontrar y procesar los marcadores
-                    # La lógica if/elif/else asegura que solo un tipo de marcador se procese por parte
-
-                    # 1. [PAUSE:X]TextoOpcionalDespues
-                    # Zsh: PAUSE:([0-9]+)](.*)
                     match_pause = re.search(r"\[PAUSE:(\d+)\](.*)", part)
                     if match_pause:
                         duration = match_pause.group(1)
                         text_after_marker = match_pause.group(2).strip()
                         manejar_pausa(duration, text_after_marker)
+                        continue 
                     
-                    # 2. TextoOpcionalAntes[IMAGEN:archivo.png]
-                    # Zsh: IMAGEN:\ (.+)]  y texto con "${part%%IMAGEN:*}"
-                    elif re.search(r"\[IMAGEN:\s*([^\]]+)\]", part): # Usar re.search aquí para la condición elif
-                        match_imagen = re.search(r"\[IMAGEN:\s*([^\]]+)\]", part) # Obtener el objeto match
+                    match_imagen = re.search(r"\[IMAGEN:\s*([^\]]+)\]", part)
+                    if match_imagen:
                         image_filename = match_imagen.group(1).strip()
-                        
-                        # Replicar la lógica de Zsh "${part%%IMAGEN:*}"
-                        # Esto toma el texto ANTES de la primera aparición de "IMAGEN:"
-                        text_to_speak_for_image = ""
-                        idx = part.find("IMAGEN:") # Encuentra el inicio de "IMAGEN:"
-                        if idx != -1:
-                            text_to_speak_for_image = part[:idx].strip() # Texto antes, sin espacios extra al final
-                        
-                        manejar_imagen(image_filename, text_to_speak_for_image)
+                        text_before_tag = ""
+                        tag_start_index = match_imagen.start(0)
+                        if tag_start_index > 0:
+                            text_before_tag = part[:tag_start_index].strip()
+                        manejar_imagen(image_filename, text_before_tag)
+                        continue
                     
-                    # 3. [TIEMPO]
-                    elif re.search(r"\[TIEMPO\]", part):
+                    match_tiempo = re.search(r"\[TIEMPO\]", part)
+                    if match_tiempo:
                         sintetizar_tiempo()
+                        continue
                     
-                    # 4. [EJERCICIO:N]
-                    # Zsh: EJERCICIO:\ ([0-9]+)]
-                    elif re.search(r"\[EJERCICIO:\s*(\d+)\]", part):
-                        match_ejercicio = re.search(r"\[EJERCICIO:\s*(\d+)\]", part) # Obtener el objeto match
+                    match_ejercicio = re.search(r"\[EJERCICIO:\s*(\d+)\]", part)
+                    if match_ejercicio:
                         numero = match_ejercicio.group(1).strip()
                         manejar_ejercicio(numero)
+                        continue
                     
-                    # 5. Si no es ninguno de los marcadores, decir la parte entera
-                    else:
-                        speak(part)
+                    speak(part)
 
-    except FileNotFoundError:
-        print(f"Error: El archivo de entrada '{INPUT_FILE}' no fue encontrado.")
     except Exception as e:
         print(f"Ocurrió un error inesperado durante la ejecución: {e}")
 
@@ -148,8 +132,49 @@ if __name__ == "__main__":
     print("Iniciando el script de Pilates en Python...")
     print("--------------------------------------------------------------------")
     print("Nota: Este script utiliza los comandos 'say' y 'open' de macOS.")
-    print("Asegúrate de que el archivo 'pilates01.txt' esté en el mismo directorio.")
+    
+    # Listar archivos .txt en el directorio actual
+    txt_files = glob.glob("*.txt")
+    # Alternativa más explícita si se quieren solo archivos y no directorios (glob suele ser suficiente):
+    # txt_files = [f for f in os.listdir('.') if os.path.isfile(f) and f.lower().endswith('.txt')]
+    
+    if not txt_files:
+        print("No se encontraron archivos .txt en el directorio actual.")
+        print("Por favor, asegúrate de que haya archivos .txt o introduce la ruta manualmente.")
+        # Opcionalmente, podrías volver a pedir una ruta manual aquí:
+        # manual_file = input("Introduce la ruta completa al archivo .txt: ")
+        # if manual_file and os.path.exists(manual_file):
+        #    main(manual_file)
+        # else:
+        #    print("Archivo no válido o no encontrado. Saliendo.")
+    else:
+        print("\nArchivos .txt disponibles en el directorio actual:")
+        for i, filename in enumerate(txt_files):
+            print(f"  {i + 1}. {filename}")
+        
+        selected_filename = None
+        while True:
+            try:
+                choice_str = input(f"\nElige el número del archivo a procesar (1-{len(txt_files)}): ")
+                choice_int = int(choice_str)
+                if 1 <= choice_int <= len(txt_files):
+                    selected_filename = txt_files[choice_int - 1]
+                    break
+                else:
+                    print(f"Selección inválida. Por favor, introduce un número entre 1 y {len(txt_files)}.")
+            except ValueError:
+                print("Entrada inválida. Por favor, introduce un número.")
+            except KeyboardInterrupt:
+                print("\nSelección cancelada por el usuario. Saliendo.")
+                break # Sale del bucle while
+        
+        if selected_filename:
+            main(selected_filename)
+        else:
+            if not txt_files: # Si no había archivos y no se seleccionó manualmente
+                pass # El mensaje ya se mostró
+            else: # Si se canceló la selección
+                print("No se seleccionó ningún archivo.")
+
     print("--------------------------------------------------------------------")
-    main()
-    print("--------------------------------------------------------------------")
-    print("Script de Pilates finalizado.")º
+    print("Script de Pilates finalizado.")
