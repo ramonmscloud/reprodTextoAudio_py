@@ -146,7 +146,8 @@ Dead Bug
 Estiramiento brazos piernas lateral Izquierod, derecho ambos.
 [PAUSE:45]
 
-[EJERCICIO: 38] Descansar. dos minutos.
+[EJERCICIO: 38] 
+Descansar. dos minutos.
 [PAUSE:45]
 [TIEMPO]
 Finalizado!!
